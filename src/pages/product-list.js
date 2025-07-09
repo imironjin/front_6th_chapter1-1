@@ -5,18 +5,71 @@ import ProductListLoading from "../components/product-list/product-list-loading"
 export default function ProductListPage() {
   let container = null;
 
-  const mount = async (target) => {
-    container = target;
+  const params = {
+    page: 1,
+    limit: 20,
+    search: "",
+    category1: "",
+    category2: "",
+    sort: "price_asc",
+  };
 
+  const loadAndRender = async () => {
     container.innerHTML = ProductListLoading();
 
     try {
-      const products = await getProducts();
+      const products = await getProducts(params);
+      console.log(products);
       render(products);
     } catch (error) {
       console.error("상품 로딩 실패:", error);
-      container.innerHTML = /* HTML */ ` <p>상품을 불러오는 데 실패했습니다.</p> `;
+      container.innerHTML = /* html */ `
+        <p class="text-red-500 mb-4">상품을 불러오는 데 실패했습니다.</p>
+        <button id="retry-btn">재시도</button>
+      `;
+
+      const retryBtn = document.getElementById("retry-btn");
+
+      if (retryBtn) {
+        retryBtn.addEventListener("click", loadAndRender);
+      }
     }
+  };
+
+  const mount = async (target) => {
+    container = target;
+
+    loadAndRender();
+
+    container.addEventListener("change", (e) => {
+      if (e.target.id === "limit-select") {
+        // e.target.value의 경우 string이기 때문에 형변환
+        params.limit = parseInt(e.target.value, 10);
+        loadAndRender();
+      } else if (e.target.id === "sort-select") {
+        params.sort = e.target.value;
+        loadAndRender();
+      } else if (e.target.id === "search-input") {
+        params.search = e.target.value;
+        loadAndRender();
+      }
+    });
+
+    container.addEventListener("click", (e) => {
+      if (e.target.classList.contains("category1-filter-btn")) {
+        params.category1 = e.target.dataset.category1;
+        params.category2 = ""; // 1depth 선택 시 2depth 초기화
+        loadAndRender();
+      } else if (e.target.classList.contains("category2-filter-btn")) {
+        params.category2 = e.target.dataset.category2;
+        loadAndRender();
+      } else if (e.target.dataset.breadcrumb === "reset") {
+        // 전체 카테고리로 리셋
+        params.category1 = "";
+        params.category2 = "";
+        loadAndRender();
+      }
+    });
   };
 
   const render = (products) => {
@@ -112,10 +165,10 @@ export default function ProductListPage() {
                     id="limit-select"
                     class="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="10">10개</option>
-                    <option value="20" selected="">20개</option>
-                    <option value="50">50개</option>
-                    <option value="100">100개</option>
+                    <option value="10" ${params.limit === 10 ? "selected" : ""}>10개</option>
+                    <option value="20" ${params.limit === 20 ? "selected" : ""}>20개</option>
+                    <option value="50" ${params.limit === 50 ? "selected" : ""}>50개</option>
+                    <option value="100" ${params.limit === 100 ? "selected" : ""}>100개</option>
                   </select>
                 </div>
                 <!-- 정렬 -->
@@ -126,10 +179,10 @@ export default function ProductListPage() {
                     class="text-sm border border-gray-300 rounded px-2 py-1
                              focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="price_asc" selected="">가격 낮은순</option>
-                    <option value="price_desc">가격 높은순</option>
-                    <option value="name_asc">이름순</option>
-                    <option value="name_desc">이름 역순</option>
+                    <option value="price_asc" ${params.sort === "price_asc" ? "selected" : ""}>가격 낮은순</option>
+                    <option value="price_desc" ${params.sort === "price_desc" ? "selected" : ""}>가격 높은순</option>
+                    <option value="name_asc" ${params.sort === "name_asc" ? "selected" : ""}>이름순</option>
+                    <option value="name_desc" ${params.sort === "name_desc" ? "selected" : ""}>이름 역순</option>
                   </select>
                 </div>
               </div>
