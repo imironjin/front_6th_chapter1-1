@@ -93,7 +93,7 @@ const ProductListPage = () => {
     `;
 
     container.innerHTML = /* HTML */ `
-      <div class="bg-gray-50">
+      <div class="min-h-screen bg-gray-50">
         <header class="bg-white shadow-sm sticky top-0 z-40">
           <div class="max-w-md mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
