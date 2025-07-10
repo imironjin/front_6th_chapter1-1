@@ -1,84 +1,28 @@
+import { useState } from "../utils/use-state";
 import { getProducts } from "../api/productApi";
 import ProductCard from "../components/product-list/product-card";
 import ProductListLoading from "../components/product-list/product-list-loading";
 
-export default function ProductListPage() {
+const ProductListPage = () => {
   let container = null;
 
-  const params = {
+  const [getParams, setParams, subscribeParams] = useState({
     page: 1,
     limit: 20,
     search: "",
     category1: "",
     category2: "",
     sort: "price_asc",
-  };
-
-  const loadAndRender = async () => {
-    container.innerHTML = ProductListLoading();
-    try {
-      const products = await getProducts(params);
-      console.log(products);
-      render(products);
-    } catch (error) {
-      console.error("상품 로딩 실패:", error);
-      container.innerHTML = /* html */ `
-        <p class="text-red-500 mb-4">상품을 불러오는 데 실패했습니다.</p>
-        <button id="retry-btn">재시도</button>
-      `;
-
-      const retryBtn = document.getElementById("retry-btn");
-
-      if (retryBtn) {
-        retryBtn.addEventListener("click", loadAndRender);
-      }
-    }
-  };
-
-  const mount = async (target) => {
-    container = target;
-
-    loadAndRender();
-
-    // 선택 변경 시 즉시 목록에 반영된다
-    container.addEventListener("change", (e) => {
-      if (e.target.id === "limit-select") {
-        // e.target.value의 경우 string이기 때문에 형변환
-        params.limit = parseInt(e.target.value, 10);
-        loadAndRender();
-      } else if (e.target.id === "sort-select") {
-        params.sort = e.target.value;
-        loadAndRender();
-      }
-    });
-
-    // 정렬 변경 시 목록에 반영된다
-    container.addEventListener("click", (e) => {
-      if (e.target.classList.contains("category1-filter-btn")) {
-        params.category1 = e.target.dataset.category1;
-        params.category2 = ""; // 1depth 선택 시 2depth 초기화
-        loadAndRender();
-      } else if (e.target.classList.contains("category2-filter-btn")) {
-        params.category2 = e.target.dataset.category2;
-        loadAndRender();
-      } else if (e.target.dataset.breadcrumb === "reset") {
-        // 전체 카테고리로 리셋
-        params.category1 = "";
-        params.category2 = "";
-        loadAndRender();
-      }
-    });
-
-    // Enter 키로 검색이 수행할 수 있으며, 검색어와 일치하는 상품들만 목록에 표시된다
-    container.addEventListener("keypress", (e) => {
-      if (e.key === "Enter" && e.target.id === "search-input") {
-        params.search = e.target.value;
-        loadAndRender();
-      }
-    });
-  };
+  });
 
   const render = (products) => {
+    const params = getParams();
+
+    if (!products) {
+      container.innerHTML = ProductListLoading();
+      return;
+    }
+
     const { products: productList, pagination } = products;
 
     container.innerHTML = /* HTML */ `
@@ -219,9 +163,75 @@ export default function ProductListPage() {
     `;
   };
 
+  const loadAndRender = async () => {
+    render(null); // 로딩 화면 표시
+
+    try {
+      const products = await getProducts(getParams());
+
+      render(products);
+    } catch (error) {
+      console.error("상품 로딩 실패:", error);
+      container.innerHTML = /* html */ `
+        <p class="text-red-500 mb-4">상품을 불러오는 데 실패했습니다.</p>
+        <button id="retry-btn">재시도</button>
+      `;
+
+      const retryBtn = document.getElementById("retry-btn");
+      retryBtn?.addEventListener("click", loadAndRender);
+    }
+  };
+
+  const mount = (target) => {
+    container = target;
+    loadAndRender(); // 최초 렌더
+
+    // 상태 변화 시 재호출
+    subscribeParams(loadAndRender);
+
+    // 이벤트 리스너 등록
+    container.addEventListener("change", (e) => {
+      if (e.target.id === "limit-select") {
+        setParams({ limit: parseInt(e.target.value, 10) });
+      } else if (e.target.id === "sort-select") {
+        setParams({ sort: e.target.value });
+      }
+    });
+
+    container.addEventListener("click", (e) => {
+      if (e.target.classList.contains("category1-filter-btn")) {
+        setParams({
+          category1: e.target.dataset.category1,
+          category2: "",
+        });
+      } else if (e.target.classList.contains("category2-filter-btn")) {
+        setParams({
+          category2: e.target.dataset.category2,
+        });
+      } else if (e.target.dataset.breadcrumb === "reset") {
+        setParams({
+          category1: "",
+          category2: "",
+        });
+      }
+    });
+
+    container.addEventListener("keypress", (e) => {
+      if (e.key === "Enter" && e.target.id === "search-input") {
+        setParams({ search: e.target.value });
+      }
+    });
+  };
+
   const unmount = () => {
     if (container) container.innerHTML = "";
   };
 
-  return { mount, render, unmount };
-}
+  return {
+    mount,
+    render,
+    unmount,
+  };
+};
+
+export default ProductListPage;
