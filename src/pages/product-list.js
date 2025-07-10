@@ -1,5 +1,5 @@
 import { useState } from "../utils/use-state";
-import { getProducts } from "../api/productApi";
+import { getCategories, getProducts } from "../api/productApi";
 import ProductCard from "../components/product-list/product-card";
 import ProductListLoading from "../components/product-list/product-list-loading";
 
@@ -15,7 +15,7 @@ const ProductListPage = () => {
     sort: "price_asc",
   });
 
-  const render = (products) => {
+  const render = (products, categories) => {
     const params = getParams();
 
     if (!products) {
@@ -24,6 +24,73 @@ const ProductListPage = () => {
     }
 
     const { products: productList, pagination } = products;
+
+    // 1depth 카테고리 버튼 (선택 안됐을 때만 표시)
+    const category1Buttons = !params.category1
+      ? Object.keys(categories)
+          .map(
+            (category1) => /* HTML */ `
+              <button
+                data-category1="${category1}"
+                class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
+          bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                ${category1}
+              </button>
+            `,
+          )
+          .join("")
+      : "";
+
+    // 2depth 카테고리 버튼 (선택된 category1 하위만 표시)
+    const category2Buttons = params.category1
+      ? Object.keys(categories[params.category1] || {})
+          .map((category2) => {
+            const isSelected = params.category2 === category2;
+            return `
+          <button
+            data-category1="${params.category1}"
+            data-category2="${category2}"
+            class="category2-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
+            ${
+              isSelected
+                ? "bg-blue-100 border-blue-300 text-blue-800"
+                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            }"
+          >
+            ${category2}
+          </button>
+        `;
+          })
+          .join("")
+      : "";
+
+    // 브레드크럼 HTML 추가
+    const breadcrumbHTML = /* HTML */ `
+      <button data-breadcrumb="reset" class="text-xs hover:text-blue-800 hover:underline">전체</button>
+      ${params.category1 ? /* HTML */ `<span class="text-xs text-gray-500">&gt;</span>` : ""}
+      ${params.category1
+        ? /* HTML */
+          `<button
+            data-breadcrumb="category1"
+            data-category1="${params.category1}"
+            class="text-xs hover:text-blue-800 hover:underline"
+          >
+            ${params.category1}
+          </button>`
+        : ""}
+      ${params.category2 ? /* HTML */ `<span class="text-xs text-gray-500">&gt;</span>` : ""}
+      ${params.category2
+        ? /* HTML */
+          `<button
+            data-breadcrumb="category2"
+            data-category2="${params.category2}"
+            class="text-xs hover:text-blue-800 hover:underline"
+          >
+            ${params.category2}
+          </button>`
+        : ""}
+    `;
 
     container.innerHTML = /* HTML */ `
       <div class="bg-gray-50">
@@ -85,26 +152,24 @@ const ProductListPage = () => {
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
                   <label class="text-sm text-gray-600">카테고리:</label>
-                  <button data-breadcrumb="reset" class="text-xs hover:text-blue-800 hover:underline">전체</button>
+                  ${breadcrumbHTML}
                 </div>
                 <!-- 1depth 카테고리 -->
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    data-category1="생활/건강"
-                    class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
-                   bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    생활/건강
-                  </button>
-                  <button
-                    data-category1="디지털/가전"
-                    class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
-                   bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    디지털/가전
-                  </button>
-                </div>
+                ${category1Buttons /* HTML */
+                  ? `
+                  <div class="flex flex-wrap gap-2">
+                  ${category1Buttons}
+                  </div>
+                  `
+                  : ""}
                 <!-- 2depth 카테고리 -->
+                ${category2Buttons
+                  ? /* HTML */ `
+                      <div class="space-y-2">
+                        <div class="flex flex-wrap gap-2">${category2Buttons}</div>
+                      </div>
+                    `
+                  : ""}
               </div>
               <!-- 기존 필터들 -->
               <div class="flex gap-2 items-center justify-between">
@@ -163,13 +228,15 @@ const ProductListPage = () => {
     `;
   };
 
-  const loadAndRender = async () => {
-    render(null); // 로딩 화면 표시
+  const loadAndRender = async (showLoading = true) => {
+    if (showLoading) {
+      render(null, null);
+    }
 
     try {
-      const products = await getProducts(getParams());
+      const [products, categories] = await Promise.all([getProducts(getParams()), getCategories()]);
 
-      render(products);
+      render(products, categories);
     } catch (error) {
       console.error("상품 로딩 실패:", error);
       container.innerHTML = /* html */ `
@@ -184,10 +251,10 @@ const ProductListPage = () => {
 
   const mount = (target) => {
     container = target;
-    loadAndRender(); // 최초 렌더
+    loadAndRender(true); // 최초 렌더 시 로딩 표시
 
     // 상태 변화 시 재호출
-    subscribeParams(loadAndRender);
+    subscribeParams(() => loadAndRender(false));
 
     // 이벤트 리스너 등록
     container.addEventListener("change", (e) => {
@@ -212,6 +279,16 @@ const ProductListPage = () => {
         setParams({
           category1: "",
           category2: "",
+        });
+      } else if (e.target.dataset.breadcrumb === "category1") {
+        setParams({
+          category1: e.target.dataset.category1,
+          category2: "",
+        });
+      } else if (e.target.dataset.breadcrumb === "category2") {
+        setParams({
+          category1: getParams().category1,
+          category2: e.target.dataset.category2,
         });
       }
     });
