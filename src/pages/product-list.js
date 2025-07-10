@@ -291,6 +291,16 @@ const ProductListPage = () => {
           category2: e.target.dataset.category2,
         });
       }
+
+      const card = e.target.closest(".product-card");
+      if (card) {
+        const productId = card.dataset.productId;
+        if (productId) {
+          history.pushState(null, "", `/product/${productId}`);
+          const popStateEvent = new PopStateEvent("popstate", { state: null });
+          dispatchEvent(popStateEvent);
+        }
+      }
     });
 
     container.addEventListener("keypress", (e) => {

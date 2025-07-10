@@ -1,4 +1,5 @@
 import NotFoundPage from "./pages/404.js";
+import ProductDetailPage from "./pages/product-detail.js";
 import ProductListPage from "./pages/product-list.js";
 
 const enableMocking = () =>
@@ -15,6 +16,10 @@ const routes = [
     view: () => ProductListPage(),
   },
   {
+    path: "/product/:id",
+    view: () => ProductDetailPage(),
+  },
+  {
     path: "/404",
     view: () => NotFoundPage(),
   },
@@ -26,7 +31,18 @@ let currentViewInstance = null;
 /** 라우터 렌더 함수 */
 function renderRoute() {
   const path = location.pathname;
-  const route = routes.find((r) => r.path === path);
+  let route = routes.find((r) => r.path === path);
+
+  // exact match가 없으면, dynamic route 처리
+  if (!route) {
+    route = routes.find((r) => {
+      if (r.path.includes("/:")) {
+        const basePath = r.path.split("/:")[0];
+        return path.startsWith(basePath);
+      }
+      return false;
+    });
+  }
 
   // 라우트 정의에 없으면 404 페이지로 이동
   if (!route) {
