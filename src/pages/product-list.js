@@ -16,7 +16,6 @@ export default function ProductListPage() {
 
   const loadAndRender = async () => {
     container.innerHTML = ProductListLoading();
-
     try {
       const products = await getProducts(params);
       console.log(products);
@@ -41,6 +40,7 @@ export default function ProductListPage() {
 
     loadAndRender();
 
+    // 선택 변경 시 즉시 목록에 반영된다
     container.addEventListener("change", (e) => {
       if (e.target.id === "limit-select") {
         // e.target.value의 경우 string이기 때문에 형변환
@@ -49,12 +49,10 @@ export default function ProductListPage() {
       } else if (e.target.id === "sort-select") {
         params.sort = e.target.value;
         loadAndRender();
-      } else if (e.target.id === "search-input") {
-        params.search = e.target.value;
-        loadAndRender();
       }
     });
 
+    // 정렬 변경 시 목록에 반영된다
     container.addEventListener("click", (e) => {
       if (e.target.classList.contains("category1-filter-btn")) {
         params.category1 = e.target.dataset.category1;
@@ -67,6 +65,14 @@ export default function ProductListPage() {
         // 전체 카테고리로 리셋
         params.category1 = "";
         params.category2 = "";
+        loadAndRender();
+      }
+    });
+
+    // Enter 키로 검색이 수행할 수 있으며, 검색어와 일치하는 상품들만 목록에 표시된다
+    container.addEventListener("keypress", (e) => {
+      if (e.key === "Enter" && e.target.id === "search-input") {
+        params.search = e.target.value;
         loadAndRender();
       }
     });
@@ -113,7 +119,7 @@ export default function ProductListPage() {
                   type="text"
                   id="search-input"
                   placeholder="상품명을 검색해보세요..."
-                  value=""
+                  value="${params.search}"
                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg
                           focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
